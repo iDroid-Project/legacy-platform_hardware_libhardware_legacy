@@ -17,42 +17,49 @@
 #include "qemu.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
 
-#define THE_DEVICE "/sys/class/timed_output/vibrator/enable"
+#define LOG_TAG "vibration"
+#include <utils/Log.h>
+
+#define THE_DEVICE "/dev/ttyS1"
 
 static int sendit(int timeout_ms)
 {
-    int nwr, ret, fd;
-    char value[20];
+    int nwr, ret,fd;
+    char value[100];
 
-#ifdef QEMU_HARDWARE
-    if (qemu_check()) {
-        return qemu_control_command( "vibrator:%d", timeout_ms );
-    }
-#endif
-
-    fd = open(THE_DEVICE, O_RDWR);
+    if (fd > 0)
+     usleep(100000);
+    
+    fd = open(THE_DEVICE, O_RDWR | O_NOCTTY);
     if(fd < 0)
         return errno;
-
-    nwr = sprintf(value, "%d\n", timeout_ms);
+    
+    if(timeout_ms > 0){
+      nwr = sprintf(value, "at+xdrv=4,0,1,12,%d,%d\r\n",timeout_ms+1,timeout_ms);
+    }else{
+      nwr = sprintf(value, "at+xdrv=4,0,0,0,0,0\r\n");
+    }
     ret = write(fd, value, nwr);
-
     close(fd);
-
+    
     return (ret == nwr) ? 0 : -1;
 }
 
 int vibrator_on(int timeout_ms)
 {
-    /* constant on, up to maximum allowed time */
+if(Platform == IPHONE_2G) {
     return sendit(timeout_ms);
+}
 }
 
 int vibrator_off()
 {
+if(Platform == IPHONE_2G) {
     return sendit(0);
+}
 }
